@@ -22,7 +22,12 @@ sio = socketio.AsyncServer(
 app = FastAPI(title="Asana Clone API")
 
 # Socket.IO を FastAPI に統合
-socket_app = socketio.ASGIApp(sio, app)
+socket_app = socketio.ASGIApp(
+    sio, 
+    app,
+    socketio_path='socket.io'
+)
+
 
 # CORS設定(フロントエンドからのアクセスを許可)
 app.add_middleware(
