@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 // WebSocket接続を作成
-const socket = io('http://localhost:8000', {
+const socket = io('https://asana-backend-7vdy.onrender.com', {
   transports: ['websocket', 'polling'],
   reconnection: true,
   reconnectionDelay: 1000,
