@@ -27,7 +27,7 @@ socket_app = socketio.ASGIApp(sio, app)
 # CORS設定(フロントエンドからのアクセスを許可)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Reactの開発サーバー
+    allow_origins=["*"],  # すべてのオリジンを許可
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
