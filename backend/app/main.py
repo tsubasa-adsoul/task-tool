@@ -7,6 +7,7 @@ from datetime import timedelta, datetime, date
 from typing import List
 from sqlalchemy import or_
 from PIL import Image
+import socketio
 import os
 import uuid
 
@@ -16,12 +17,18 @@ from .database import engine, get_db
 # データベーステーブルを作成
 models.Base.metadata.create_all(bind=engine)
 
+# Socket.IO サーバーを作成（明示的なCORS設定）
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins=["https://asana-frontend.onrender.com"]
+)
+
 app = FastAPI(title="Asana Clone API")
 
 # CORS設定(フロントエンドからのアクセスを許可)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://asana-frontend.onrender.com"],  # ワイルドカードではなく具体的なドメイン
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,6 +37,41 @@ app.add_middleware(
 # 画像保存ディレクトリ
 UPLOAD_DIR = "uploads/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Socket.IOをASGIミドルウェアとして統合
+from socketio import ASGIApp
+socket_app = ASGIApp(sio, other_asgi_app=app)
+
+# WebSocket イベントハンドラ
+@sio.event
+async def connect(sid, environ):
+    print(f"Client connected: {sid}")
+
+@sio.event
+async def disconnect(sid):
+    print(f"Client disconnected: {sid}")
+
+# リアルタイム通知関数
+async def broadcast_task_update(event_type: str, task_data: dict):
+    """タスクの変更を全クライアントに通知"""
+    await sio.emit('task_update', {
+        'type': event_type,
+        'data': task_data
+    })
+
+async def broadcast_project_update(event_type: str, project_data: dict):
+    """プロジェクトの変更を全クライアントに通知"""
+    await sio.emit('project_update', {
+        'type': event_type,
+        'data': project_data
+    })
+
+async def broadcast_comment_update(event_type: str, comment_data: dict):
+    """コメントの変更を全クライアントに通知"""
+    await sio.emit('comment_update', {
+        'type': event_type,
+        'data': comment_data
+    })
 
 # ルートエンドポイント
 @app.get("/")
@@ -115,13 +157,22 @@ def read_projects(
     return projects
 
 @app.post("/api/projects", response_model=schemas.Project)
-def create_project(
+async def create_project(
     project: schemas.ProjectCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """新規プロジェクトを作成"""
     db_project = crud.create_project(db=db, project=project, user_id=current_user.id)
+    
+    await broadcast_project_update('project_created', {
+        'id': db_project.id,
+        'title': db_project.title,
+        'description': db_project.description,
+        'color': db_project.color,
+        'owner_id': db_project.owner_id
+    })
+    
     return db_project
 
 @app.get("/api/projects/{project_id}", response_model=schemas.Project)
@@ -137,7 +188,7 @@ def read_project(
     return db_project
 
 @app.put("/api/projects/{project_id}", response_model=schemas.Project)
-def update_project(
+async def update_project(
     project_id: int,
     project: schemas.ProjectCreate,
     db: Session = Depends(get_db),
@@ -158,10 +209,18 @@ def update_project(
     db.commit()
     db.refresh(db_project)
     
+    await broadcast_project_update('project_updated', {
+        'id': db_project.id,
+        'title': db_project.title,
+        'description': db_project.description,
+        'color': db_project.color,
+        'owner_id': db_project.owner_id
+    })
+    
     return db_project
 
 @app.delete("/api/projects/{project_id}")
-def delete_project(
+async def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
@@ -177,6 +236,8 @@ def delete_project(
     db.query(models.Task).filter(models.Task.project_id == project_id).delete()
     db.delete(db_project)
     db.commit()
+    
+    await broadcast_project_update('project_deleted', {'id': project_id})
     
     return {"message": "プロジェクトを削除しました"}
 
@@ -224,17 +285,32 @@ def read_tasks(
     return tasks
 
 @app.post("/api/tasks", response_model=schemas.Task)
-def create_task(
+async def create_task(
     task: schemas.TaskCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """タスクを作成"""
     db_task = crud.create_task(db=db, task=task, user_id=current_user.id)
+    
+    await broadcast_task_update('task_created', {
+        'id': db_task.id,
+        'title': db_task.title,
+        'description': db_task.description,
+        'status': db_task.status,
+        'priority': db_task.priority,
+        'due_date': db_task.due_date,
+        'start_time': db_task.start_time,
+        'end_time': db_task.end_time,
+        'assignee_id': db_task.assignee_id,
+        'project_id': db_task.project_id,
+        'created_at': db_task.created_at.isoformat() if db_task.created_at else None
+    })
+    
     return db_task
 
 @app.put("/api/tasks/{task_id}", response_model=schemas.Task)
-def update_task(
+async def update_task(
     task_id: int,
     task: schemas.TaskUpdate,
     db: Session = Depends(get_db),
@@ -259,10 +335,24 @@ def update_task(
         db.add(notification)
         db.commit()
     
+    await broadcast_task_update('task_updated', {
+        'id': updated_task.id,
+        'title': updated_task.title,
+        'description': updated_task.description,
+        'status': updated_task.status,
+        'priority': updated_task.priority,
+        'due_date': updated_task.due_date,
+        'start_time': updated_task.start_time,
+        'end_time': updated_task.end_time,
+        'assignee_id': updated_task.assignee_id,
+        'project_id': updated_task.project_id,
+        'created_at': updated_task.created_at.isoformat() if updated_task.created_at else None
+    })
+    
     return updated_task
 
 @app.delete("/api/tasks/{task_id}")
-def delete_task(
+async def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
@@ -271,6 +361,8 @@ def delete_task(
     db_task = crud.delete_task(db, task_id=task_id)
     if db_task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    
+    await broadcast_task_update('task_deleted', {'id': task_id})
     
     return {"message": "タスクを削除しました"}
 
@@ -288,7 +380,7 @@ def get_task_comments(
     return comments
 
 @app.post("/api/tasks/{task_id}/comments", response_model=schemas.Comment)
-def create_comment(
+async def create_comment(
     task_id: int,
     comment: schemas.CommentCreate,
     db: Session = Depends(get_db),
@@ -318,10 +410,23 @@ def create_comment(
     db.commit()
     db.refresh(db_comment)
     
+    await broadcast_comment_update('comment_created', {
+        'id': db_comment.id,
+        'content': db_comment.content,
+        'task_id': task_id,
+        'user_id': current_user.id,
+        'user': {
+            'id': current_user.id,
+            'name': current_user.name,
+            'email': current_user.email
+        },
+        'created_at': db_comment.created_at.isoformat() if db_comment.created_at else None
+    })
+    
     return db_comment
 
 @app.delete("/api/tasks/{task_id}/comments/{comment_id}")
-def delete_comment(
+async def delete_comment(
     task_id: int,
     comment_id: int,
     db: Session = Depends(get_db),
@@ -341,6 +446,11 @@ def delete_comment(
     
     db.delete(comment)
     db.commit()
+    
+    await broadcast_comment_update('comment_deleted', {
+        'id': comment_id,
+        'task_id': task_id
+    })
     
     return {"message": "コメントを削除しました"}
 
@@ -553,3 +663,17 @@ def delete_avatar(
     db.commit()
     
     return {"message": "プロフィール画像を削除しました"}
+```
+
+前回のコードとの主な違いは以下です：
+
+1. CORSの設定でワイルドカード（"*"）ではなく、具体的なドメイン（"https://asana-frontend.onrender.com"）を指定
+2. Socket.IOのCORS設定も同様に具体的なドメインを指定
+3. JSON変換時のエラーを防ぐため、`.isoformat()` メソッドを呼び出す前に `if db_task.created_at else None` などのチェックを追加
+4. すべての非同期関数（broadcastを使用するもの）に `async` キーワードを追加
+
+このように修正することで、前回の問題を解決し、リアルタイム機能を正常に動作させることができるはずです。
+
+ただし、Render.comでこのコードをデプロイする際は、Start Commandも変更する必要があります：
+```
+uvicorn app.main:socket_app --host 0.0.0.0 --port 8000
