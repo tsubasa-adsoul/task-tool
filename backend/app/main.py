@@ -1,11 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, date
 from typing import List
 from sqlalchemy import or_
+from PIL import Image
 import socketio
+import os
+import uuid
 
 from . import models, schemas, crud, auth
 from .database import engine, get_db
@@ -24,7 +28,7 @@ app = FastAPI(title="Asana Clone API")
 # CORS設定(フロントエンドからのアクセスを許可)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # すべてのオリジンを許可
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,16 +41,9 @@ socket_app = socketio.ASGIApp(
     socketio_path='socket.io'
 )
 
-
-
-# CORS設定(フロントエンドからのアクセスを許可)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # すべてのオリジンを許可
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 画像保存ディレクトリ
+UPLOAD_DIR = "uploads/avatars"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # WebSocket イベントハンドラ
 @sio.event
@@ -171,7 +168,6 @@ async def create_project(
     """新規プロジェクトを作成"""
     db_project = crud.create_project(db=db, project=project, user_id=current_user.id)
     
-    # リアルタイム通知
     await broadcast_project_update('project_created', {
         'id': db_project.id,
         'title': db_project.title,
@@ -216,7 +212,6 @@ async def update_project(
     db.commit()
     db.refresh(db_project)
     
-    # リアルタイム通知
     await broadcast_project_update('project_updated', {
         'id': db_project.id,
         'title': db_project.title,
@@ -245,7 +240,6 @@ async def delete_project(
     db.delete(db_project)
     db.commit()
     
-    # リアルタイム通知
     await broadcast_project_update('project_deleted', {'id': project_id})
     
     return {"message": "プロジェクトを削除しました"}
@@ -302,7 +296,6 @@ async def create_task(
     """タスクを作成"""
     db_task = crud.create_task(db=db, task=task, user_id=current_user.id)
     
-    # リアルタイム通知
     await broadcast_task_update('task_created', {
         'id': db_task.id,
         'title': db_task.title,
@@ -345,7 +338,6 @@ async def update_task(
         db.add(notification)
         db.commit()
     
-    # リアルタイム通知
     await broadcast_task_update('task_updated', {
         'id': updated_task.id,
         'title': updated_task.title,
@@ -373,7 +365,6 @@ async def delete_task(
     if db_task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
     
-    # リアルタイム通知
     await broadcast_task_update('task_deleted', {'id': task_id})
     
     return {"message": "タスクを削除しました"}
@@ -422,7 +413,6 @@ async def create_comment(
     db.commit()
     db.refresh(db_comment)
     
-    # リアルタイム通知
     await broadcast_comment_update('comment_created', {
         'id': db_comment.id,
         'content': db_comment.content,
@@ -460,7 +450,6 @@ async def delete_comment(
     db.delete(comment)
     db.commit()
     
-    # リアルタイム通知
     await broadcast_comment_update('comment_deleted', {
         'id': comment_id,
         'task_id': task_id
@@ -571,17 +560,10 @@ def check_due_dates(
                 )
                 db.add(notification)
     
+    db.commit()
+    return {"message": "期限通知をチェックしました", "checked_dates": [str(today + timedelta(days=d)) for d in [3, 1, 0]]}
+
 # プロフィールAPI
-from fastapi import File, UploadFile
-from fastapi.responses import FileResponse
-from PIL import Image
-import os
-import uuid
-
-# 画像保存ディレクトリ
-UPLOAD_DIR = "uploads/avatars"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 @app.get("/api/profile", response_model=schemas.User)
 def get_profile(current_user: models.User = Depends(auth.get_current_user)):
     """現在のユーザーのプロフィールを取得"""
@@ -684,8 +666,3 @@ def delete_avatar(
     db.commit()
     
     return {"message": "プロフィール画像を削除しました"}
-
-
-
-    db.commit()
-    return {"message": "期限通知をチェックしました", "checked_dates": [str(today + timedelta(days=d)) for d in [3, 1, 0]]}
