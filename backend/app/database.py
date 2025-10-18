@@ -3,8 +3,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# 環境変数からデータベースURLを取得
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Supabase 用に SSL を有効化
+if SQLALCHEMY_DATABASE_URL and "sslmode" not in SQLALCHEMY_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL += "?sslmode=require"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -17,4 +20,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
