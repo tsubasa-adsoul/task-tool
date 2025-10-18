@@ -21,12 +21,22 @@ sio = socketio.AsyncServer(
 
 app = FastAPI(title="Asana Clone API")
 
+# CORS設定(フロントエンドからのアクセスを許可)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # すべてのオリジンを許可
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Socket.IO を FastAPI に統合
 socket_app = socketio.ASGIApp(
     sio, 
     app,
     socketio_path='socket.io'
 )
+
 
 
 # CORS設定(フロントエンドからのアクセスを許可)
