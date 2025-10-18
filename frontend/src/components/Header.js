@@ -179,7 +179,7 @@ const Header = () => {
     <>
       <HeaderContainer>
         <LeftSection>
-          <Logo onClick={handleLogoClick}>Asana Clone</Logo>
+          <Logo onClick={handleLogoClick}>ADSOUL TASK</Logo>
           <SearchBar onSubmit={handleSearch}>
             <FiSearch color={colors.text.light} />
             <SearchInput 

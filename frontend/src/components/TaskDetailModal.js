@@ -338,11 +338,33 @@ const TaskDetailModal = ({ task, onClose, onUpdate, onDelete }) => {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
-  useEffect(() => {
-    fetchUsers();
-    fetchComments();
-    fetchCurrentUser();
-  }, []);
+useEffect(() => {
+  fetchUsers();
+  fetchComments();
+  fetchCurrentUser();
+
+  const handleCommentUpdate = (event) => {
+    const { type, data } = event.detail;
+    console.log('コメント更新イベント受信:', type, data);
+
+    if (data.task_id === task.id) {
+      if (type === 'comment_created') {
+        setComments(prevComments => [data, ...prevComments]);
+      } else if (type === 'comment_deleted') {
+        setComments(prevComments =>
+          prevComments.filter(comment => comment.id !== data.id)
+        );
+      }
+    }
+  };
+
+  window.addEventListener('comment_update', handleCommentUpdate);
+
+  return () => {
+    window.removeEventListener('comment_update', handleCommentUpdate);
+  };
+}, [task.id]);
+
 
   const fetchUsers = async () => {
     try {

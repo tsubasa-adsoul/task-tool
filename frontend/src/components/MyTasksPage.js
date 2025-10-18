@@ -208,7 +208,6 @@ const AssigneeContainer = styled.div`
   gap: 8px;
 `;
 
-// ソート可能なタスク行コンポーネント
 const SortableTaskRow = ({ task, sortBy, users, onTaskClick, onComplete }) => {
   const {
     attributes,
@@ -288,8 +287,26 @@ const MyTasksPage = () => {
     fetchTasks();
     fetchUsers();
 
-    const handleTaskUpdate = () => {
-      fetchTasks();
+    const handleTaskUpdate = (event) => {
+      const { type, data } = event.detail;
+      console.log('タスク更新イベント受信:', type, data);
+
+      if (type === 'task_created') {
+        // 新規タスクを追加
+        setTasks(prevTasks => [...prevTasks, data]);
+      } else if (type === 'task_updated') {
+        // 既存タスクを更新
+        setTasks(prevTasks =>
+          prevTasks.map(task =>
+            task.id === data.id ? { ...task, ...data } : task
+          )
+        );
+      } else if (type === 'task_deleted') {
+        // タスクを削除
+        setTasks(prevTasks =>
+          prevTasks.filter(task => task.id !== data.id)
+        );
+      }
     };
 
     window.addEventListener('task_update', handleTaskUpdate);
@@ -336,7 +353,7 @@ const MyTasksPage = () => {
     try {
       const newStatus = currentStatus === 'done' ? 'todo' : 'done';
       await taskAPI.updateTask(taskId, { status: newStatus });
-      fetchTasks();
+      // WebSocketで更新が通知されるので、ここでは何もしない
     } catch (error) {
       console.error('タスクの更新に失敗しました:', error);
     }

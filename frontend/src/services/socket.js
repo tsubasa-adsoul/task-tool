@@ -1,24 +1,108 @@
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 
+<<<<<<< HEAD
 // WebSocket接続を作成
 const socket = io('https://asana-backend-7vdy.onrender.com', {
   transports: ['websocket', 'polling'],
+=======
+// 本番環境のURLを使用
+const SOCKET_URL = 'https://asana-backend-7vdy.onrender.com';
+
+const socket = io(SOCKET_URL, {
+  transports: ['websocket'],
+  autoConnect: true,
+>>>>>>> e061760dd0f91ca803211f208ad179a63bac598b
   reconnection: true,
   reconnectionDelay: 1000,
-  reconnectionAttempts: 5
+  reconnectionAttempts: 10
 });
 
-// 接続イベント
 socket.on('connect', () => {
-  console.log('WebSocket connected:', socket.id);
+  console.log('WebSocket接続確立');
 });
 
 socket.on('disconnect', () => {
-  console.log('WebSocket disconnected');
+  console.log('WebSocket接続切断');
 });
 
 socket.on('connect_error', (error) => {
-  console.error('WebSocket connection error:', error);
+  console.error('接続エラー:', error);
 });
+
+// タスク更新のイベントリスナー
+const taskListeners = [];
+const projectListeners = [];
+const commentListeners = [];
+
+// タスク更新のリスナーを追加
+export const addTaskListener = (callback) => {
+  const listener = (data) => {
+    callback(data);
+  };
+  
+  socket.on('task_update', listener);
+  taskListeners.push(listener);
+  
+  return () => {
+    socket.off('task_update', listener);
+    const index = taskListeners.indexOf(listener);
+    if (index !== -1) {
+      taskListeners.splice(index, 1);
+    }
+  };
+};
+
+// プロジェクト更新のリスナーを追加
+export const addProjectListener = (callback) => {
+  const listener = (data) => {
+    callback(data);
+  };
+  
+  socket.on('project_update', listener);
+  projectListeners.push(listener);
+  
+  return () => {
+    socket.off('project_update', listener);
+    const index = projectListeners.indexOf(listener);
+    if (index !== -1) {
+      projectListeners.splice(index, 1);
+    }
+  };
+};
+
+// コメント更新のリスナーを追加
+export const addCommentListener = (callback) => {
+  const listener = (data) => {
+    callback(data);
+  };
+  
+  socket.on('comment_update', listener);
+  commentListeners.push(listener);
+  
+  return () => {
+    socket.off('comment_update', listener);
+    const index = commentListeners.indexOf(listener);
+    if (index !== -1) {
+      commentListeners.splice(index, 1);
+    }
+  };
+};
+
+// すべてのリスナーをクリーンアップ
+export const cleanup = () => {
+  taskListeners.forEach(listener => {
+    socket.off('task_update', listener);
+  });
+  projectListeners.forEach(listener => {
+    socket.off('project_update', listener);
+  });
+  commentListeners.forEach(listener => {
+    socket.off('comment_update', listener);
+  });
+  
+  taskListeners.length = 0;
+  projectListeners.length = 0;
+  commentListeners.length = 0;
+};
 
 export default socket;

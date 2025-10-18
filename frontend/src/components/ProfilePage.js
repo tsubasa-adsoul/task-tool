@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiUser, FiMail, FiLock, FiCamera, FiSave } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiCamera, FiSave, FiTrash2 } from 'react-icons/fi';
 import { colors } from '../styles/GlobalStyles';
 import { authAPI } from '../services/api';
 import axios from 'axios';
@@ -173,6 +173,25 @@ const SaveButton = styled.button`
   }
 `;
 
+const DeleteAccountButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #f44336;
+  color: ${colors.white};
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 24px;
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
 const Message = styled.div`
   padding: 12px 16px;
   border-radius: 6px;
@@ -215,7 +234,7 @@ const ProfilePage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:8000/api/profile/avatar', formData, {
+      await axios.post('https://asana-backend-7vdy.onrender.com/api/profile/avatar', formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -234,7 +253,7 @@ const ProfilePage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete('http://localhost:8000/api/profile/avatar', {
+      await axios.delete('https://asana-backend-7vdy.onrender.com/api/profile/avatar', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -267,7 +286,7 @@ const ProfilePage = () => {
         updateData.password = password;
       }
 
-      await axios.put('http://localhost:8000/api/profile', updateData, {
+      await axios.put('https://asana-backend-7vdy.onrender.com/api/profile', updateData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -285,6 +304,26 @@ const ProfilePage = () => {
     setLoading(false);
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('アカウントを本当に削除しますか？この操作は取り消せません。')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`https://asana-backend-7vdy.onrender.com/api/users/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // ログアウト処理
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('アカウント削除に失敗しました:', error);
+      setMessage({ type: 'error', text: error.response?.data?.detail || 'アカウント削除に失敗しました' });
+    }
+  };
+
   if (!user) {
     return (
       <PageContainer>
@@ -295,7 +334,7 @@ const ProfilePage = () => {
     );
   }
 
-  const avatarUrl = user.avatar ? `http://localhost:8000/api/avatars/${user.avatar}` : null;
+  const avatarUrl = user.avatar ? `https://asana-backend-7vdy.onrender.com/api/avatars/${user.avatar}` : null;
   const initials = user.name.charAt(0).toUpperCase();
 
   return (
@@ -398,6 +437,11 @@ const ProfilePage = () => {
               <FiSave size={18} />
               {loading ? '保存中...' : '変更を保存'}
             </SaveButton>
+
+            <DeleteAccountButton onClick={handleDeleteAccount}>
+              <FiTrash2 size={18} />
+              アカウントを削除
+            </DeleteAccountButton>
           </form>
         </Section>
       </ContentContainer>
