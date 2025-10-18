@@ -663,17 +663,3 @@ def delete_avatar(
     db.commit()
     
     return {"message": "プロフィール画像を削除しました"}
-```
-
-前回のコードとの主な違いは以下です：
-
-1. CORSの設定でワイルドカード（"*"）ではなく、具体的なドメイン（"https://asana-frontend.onrender.com"）を指定
-2. Socket.IOのCORS設定も同様に具体的なドメインを指定
-3. JSON変換時のエラーを防ぐため、`.isoformat()` メソッドを呼び出す前に `if db_task.created_at else None` などのチェックを追加
-4. すべての非同期関数（broadcastを使用するもの）に `async` キーワードを追加
-
-このように修正することで、前回の問題を解決し、リアルタイム機能を正常に動作させることができるはずです。
-
-ただし、Render.comでこのコードをデプロイする際は、Start Commandも変更する必要があります：
-```
-uvicorn app.main:socket_app --host 0.0.0.0 --port 8000
