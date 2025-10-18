@@ -99,17 +99,91 @@ const TaskBoard = () => {
 
   useEffect(() => {
     fetchData();
+
+    const handleTaskUpdate = (event) => {
+      const { type, data } = event.detail;
+      console.log('タスク更新イベント受信:', type, data);
+
+      if (type === 'task_created') {
+        // 新規タスクを追加
+        setTasks(prevTasks => ({
+          ...prevTasks,
+          [data.id]: data
+        }));
+        setColumns(prevColumns => {
+          const status = data.status || 'todo';
+          return {
+            ...prevColumns,
+            [status]: {
+              ...prevColumns[status],
+              taskIds: [...prevColumns[status].taskIds, data.id]
+            }
+          };
+        });
+      } else if (type === 'task_updated') {
+        // 既存タスクを更新
+        setTasks(prevTasks => {
+          const oldTask = prevTasks[data.id];
+          const newTasks = {
+            ...prevTasks,
+            [data.id]: data
+          };
+
+          // ステータスが変わった場合、カラムも更新
+          if (oldTask && oldTask.status !== data.status) {
+            setColumns(prevColumns => {
+              const oldStatus = oldTask.status;
+              const newStatus = data.status;
+              
+              return {
+                ...prevColumns,
+                [oldStatus]: {
+                  ...prevColumns[oldStatus],
+                  taskIds: prevColumns[oldStatus].taskIds.filter(id => id !== data.id)
+                },
+                [newStatus]: {
+                  ...prevColumns[newStatus],
+                  taskIds: [...prevColumns[newStatus].taskIds, data.id]
+                }
+              };
+            });
+          }
+
+          return newTasks;
+        });
+      } else if (type === 'task_deleted') {
+        // タスクを削除
+        setTasks(prevTasks => {
+          const { [data.id]: removed, ...remaining } = prevTasks;
+          return remaining;
+        });
+        setColumns(prevColumns => {
+          const newColumns = { ...prevColumns };
+          Object.keys(newColumns).forEach(columnId => {
+            newColumns[columnId] = {
+              ...newColumns[columnId],
+              taskIds: newColumns[columnId].taskIds.filter(id => id !== data.id)
+            };
+          });
+          return newColumns;
+        });
+      }
+    };
+
+    window.addEventListener('task_update', handleTaskUpdate);
+
+    return () => {
+      window.removeEventListener('task_update', handleTaskUpdate);
+    };
   }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // プロジェクト一覧を取得
       const projectsResponse = await projectAPI.getProjects();
       let currentProject = projectsResponse.data[0];
       
-      // プロジェクトがない場合は作成
       if (!currentProject) {
         const newProjectResponse = await projectAPI.createProject({
           title: 'マイプロジェクト',
@@ -121,11 +195,9 @@ const TaskBoard = () => {
       
       setProject(currentProject);
 
-      // タスク一覧を取得
       const tasksResponse = await taskAPI.getTasks();
       const fetchedTasks = tasksResponse.data;
 
-      // タスクをステータスごとに分類
       const newColumns = {
         'todo': { id: 'todo', title: 'To Do', taskIds: [] },
         'inProgress': { id: 'inProgress', title: 'In Progress', taskIds: [] },
@@ -205,14 +277,12 @@ const TaskBoard = () => {
         [newFinishColumn.id]: newFinishColumn
       });
 
-      // バックエンドでタスクのステータスを更新
       try {
         await taskAPI.updateTask(parseInt(draggableId), {
           status: destination.droppableId
         });
       } catch (err) {
         console.error('タスクの更新に失敗しました:', err);
-        // エラー時は元に戻す
         fetchData();
       }
     }
@@ -263,3 +333,47 @@ const TaskBoard = () => {
 };
 
 export default TaskBoard;
+3. ProjectListView.js の修正
+useEffect内のイベントハンドラーを以下のように修正してください：
+
+CopyuseEffect(() => {
+  fetchData();
+
+  const handleTaskUpdate = (event) => {
+    const { type, data } = event.detail;
+    console.log('タスク更新イベント受信:', type, data);
+
+    if (type === 'task_created') {
+      setTasks(prevTasks => [...prevTasks, data]);
+    } else if (type === 'task_updated') {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === data.id ? { ...task, ...data } : task
+        )
+      );
+    } else if (type === 'task_deleted') {
+      setTasks(prevTasks =>
+        prevTasks.filter(task => task.id !== data.id)
+      );
+    }
+  };
+
+  const handleProjectUpdate = (event) => {
+    const { type, data } = event.detail;
+    console.log('プロジェクト更新イベント受信:', type, data);
+
+    if (type === 'project_updated' && data.id === parseInt(projectId)) {
+      setProject(data);
+    } else if (type === 'project_deleted' && data.id === parseInt(projectId)) {
+      navigate('/');
+    }
+  };
+
+  window.addEventListener('task_update', handleTaskUpdate);
+  window.addEventListener('project_update', handleProjectUpdate);
+
+  return () => {
+    window.removeEventListener('task_update', handleTaskUpdate);
+    window.removeEventListener('project_update', handleProjectUpdate);
+  };
+}, [projectId, navigate]);
