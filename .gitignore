@@ -1,0 +1,10 @@
+# ローカルデータベース
+asana_clone.db
+
+# Python 仮想環境
+venv/
+__pycache__/
+*.pyc
+
+# バックアップや一時ファイル
+backend/backups/
