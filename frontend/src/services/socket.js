@@ -100,18 +100,3 @@ export const cleanup = () => {
 };
 
 export default socket;
-```
-
-このコードは以下の変更点を含んでいます：
-
-1. 接続URLを`https://asana-backend-7vdy.onrender.com`に設定
-2. トランスポートを明示的に`['websocket']`に指定
-3. 再接続設定を追加して安定性を向上
-4. エラーハンドリングを追加
-5. イベントリスナーの管理を改善（メモリリーク防止のためのクリーンアップ関数など）
-
-この実装によって、バックエンドからのイベント通知を適切に受信し、リアルタイム更新が可能になります。
-
-この変更を適用した後、Render.comのバックエンドサービス設定で「Start Command」を以下のように変更してください：
-```
-uvicorn app.main:socket_app --host 0.0.0.0 --port 8000
