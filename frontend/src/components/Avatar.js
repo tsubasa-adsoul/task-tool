@@ -22,7 +22,9 @@ const AvatarContainer = styled.div`
 const Avatar = ({ user, size }) => {
   if (!user) return null;
 
-  const avatarUrl = user.avatar ? `http://localhost:8000/api/avatars/${user.avatar}` : null;
+  const avatarUrl = user.avatar 
+    ? `https://asana-backend-7vdy.onrender.com/api/avatars/${user.avatar}` 
+    : null;
   const initials = user.name ? user.name.charAt(0).toUpperCase() : '?';
 
   return (
