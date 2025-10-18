@@ -34,16 +34,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Socket.IO を FastAPI に統合
-socket_app = socketio.ASGIApp(
-    sio, 
-    app,
-    socketio_path='socket.io'
-)
-
 # 画像保存ディレクトリ
 UPLOAD_DIR = "uploads/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+# Socket.IOをASGIミドルウェアとして統合
+from socketio import ASGIApp
+socket_app = ASGIApp(sio, other_asgi_app=app)
+
 
 # WebSocket イベントハンドラ
 @sio.event
