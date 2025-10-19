@@ -1,0 +1,16 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # 5分ごとに実行
+  workflow_dispatch:  # 手動実行用
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping service
+        run: curl -s https://asana-backend-7vdy.onrender.com/health
+      
+      - name: Log timestamp
+        run: echo "Pinged service at $(date)"
