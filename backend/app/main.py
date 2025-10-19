@@ -95,7 +95,7 @@ async def broadcast_comment_update(event_type: str, comment_data: dict):
 # ルートエンドポイント
 @app.get("/")
 def read_root():
-    return {"message": "Asana Clone API"}
+    return {"message": "Asana Clone API", "status": "running"}
 
 # 認証エンドポイント
 @app.post("/api/register", response_model=schemas.User)
