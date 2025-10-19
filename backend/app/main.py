@@ -60,6 +60,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Socket.IOをASGIミドルウェアとして統合
 from socketio import ASGIApp
 socket_app = ASGIApp(sio, other_asgi_app=app)
+app = socket_app
 
 # WebSocket イベントハンドラ
 @sio.event
