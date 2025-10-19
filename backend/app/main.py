@@ -663,3 +663,8 @@ def delete_avatar(
     db.commit()
     
     return {"message": "プロフィール画像を削除しました"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for keeping the service alive"""
+    return {"status": "ok", "time": datetime.now().isoformat()}
