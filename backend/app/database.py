@@ -9,12 +9,12 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if not SQLALCHEMY_DATABASE_URL:
     raise RuntimeError("環境変数 DATABASE_URL が設定されていません。")
 
-# SSL必須対応（Supabaseの仕様）
+# SSL必須対応（正しいURLパラメータ構築）
 if "sslmode" not in SQLALCHEMY_DATABASE_URL:
-    if SQLALCHEMY_DATABASE_URL.endswith("/postgres"):
-        SQLALCHEMY_DATABASE_URL += "?sslmode=require"
-    else:
+    if "?" in SQLALCHEMY_DATABASE_URL:
         SQLALCHEMY_DATABASE_URL += "&sslmode=require"
+    else:
+        SQLALCHEMY_DATABASE_URL += "?sslmode=require"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
