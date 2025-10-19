@@ -1,5 +1,7 @@
+// api.js の修正版
+
 import axios from 'axios';
-import { toast } from 'react-toastify'; // React-Toastifyがインストールされていると仮定
+// react-toastifyのインポートを削除
 
 const API_BASE_URL = 'https://asana-backend-7vdy.onrender.com/api';
 const api = axios.create({
@@ -35,20 +37,16 @@ const retryDelay = (retryNumber = 0) => {
 
 // 再接続メッセージを表示する関数
 const showReconnectingMessage = () => {
-  if (!isReconnecting && window.toast) {
+  if (!isReconnecting) {
     isReconnecting = true;
-    toast.info('サーバーに接続しています...', { 
-      autoClose: false, 
-      toastId: 'reconnecting' 
-    });
+    console.log('サーバーに接続しています...');
   }
 };
 
 // 接続回復メッセージを表示する関数
 const showConnectedMessage = () => {
-  if (isReconnecting && window.toast) {
-    toast.dismiss('reconnecting');
-    toast.success('接続が回復しました', { autoClose: 3000 });
+  if (isReconnecting) {
+    console.log('接続が回復しました');
     isReconnecting = false;
   }
 };
@@ -97,11 +95,7 @@ api.interceptors.response.use(
       }
       
       // リトライ回数上限に達したらエラーを表示
-      if (window.toast) {
-        toast.error('サーバーに接続できません。後でもう一度お試しください。', { 
-          autoClose: 5000 
-        });
-      }
+      console.error('サーバーに接続できません。後でもう一度お試しください。');
     }
     
     return Promise.reject(error);
@@ -189,10 +183,6 @@ export const debugAPI = {
   checkDatabaseStatus: () => api.get('/debug'),
 };
 
-// react-toastifyの初期化用関数（App.jsなどで使用）
-export const initializeToastContainer = () => {
-  // グローバルで利用できるようにする
-  window.toast = toast;
-};
+// toast関連の初期化関数を削除
 
 export default api;
