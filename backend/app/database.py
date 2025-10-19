@@ -23,8 +23,18 @@ Base = declarative_base()
 
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    retry_count = 0
+    max_retries = 3
+    
+    while retry_count < max_retries:
+        try:
+            db = SessionLocal()
+            yield db
+        except Exception as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                raise e
+            time.sleep(1)  # 1秒待機してリトライ
+        finally:
+            if 'db' in locals():
+                db.close()
