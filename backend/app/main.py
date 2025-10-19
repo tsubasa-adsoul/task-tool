@@ -701,10 +701,6 @@ def reset_users_endpoint():
     finally:
         db.close()
 
-@app.get("/health")
-def health_check():
-    """Health check endpoint for keeping the service alive"""
-    return {"status": "ok", "time": datetime.now().isoformat()}
 
 @app.get("/api/debug")
 def debug_database(current_user: models.User = Depends(auth.get_current_user)):
