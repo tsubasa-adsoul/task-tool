@@ -5,17 +5,36 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, date
 from typing import List
-from sqlalchemy import or_
+from sqlalchemy import or_, inspect
 from PIL import Image
 import socketio
 import os
 import uuid
+import logging
 
 from . import models, schemas, crud, auth
 from .database import engine, get_db
 
-# データベーステーブルを作成
-models.Base.metadata.create_all(bind=engine)
+# ロギング設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# データベーステーブル初期化を安全に行う
+def init_db():
+    """テーブルが存在しない場合のみ作成（既存データを保護）"""
+    inspector = inspect(engine)
+    existing_tables = inspector.get_table_names()
+    logger.info(f"既存テーブル: {existing_tables}")
+    
+    for table in models.Base.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            logger.info(f"テーブル作成: {table.name}")
+            table.create(engine)
+        else:
+            logger.info(f"テーブル確認済み: {table.name}")
+
+# 安全な初期化を実行
+init_db()
 
 # Socket.IO サーバーを作成（明示的なCORS設定）
 sio = socketio.AsyncServer(
@@ -668,3 +687,21 @@ def delete_avatar(
 def health_check():
     """Health check endpoint for keeping the service alive"""
     return {"status": "ok", "time": datetime.now().isoformat()}
+
+@app.get("/api/debug")
+def debug_database(current_user: models.User = Depends(auth.get_current_user)):
+    """データベースのテーブルと行数をデバッグ（管理者用）"""
+    db = SessionLocal()
+    try:
+        tables = db.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'").fetchall()
+        table_counts = {}
+        for (table,) in tables:
+            count = db.execute(f"SELECT COUNT(*) FROM {table}").scalar()
+            table_counts[table] = count
+        return {
+            "tables": [t[0] for t in tables],
+            "counts": table_counts,
+            "database_url": "***" + os.getenv("DATABASE_URL", "")[-20:],
+        }
+    finally:
+        db.close()
