@@ -1,17 +1,10 @@
 import io from 'socket.io-client';
 
-<<<<<<< HEAD
-// WebSocket接続を作成
-const socket = io('https://asana-backend-7vdy.onrender.com', {
-  transports: ['websocket', 'polling'],
-=======
 // 本番環境のURLを使用
 const SOCKET_URL = 'https://asana-backend-7vdy.onrender.com';
-
 const socket = io(SOCKET_URL, {
-  transports: ['websocket'],
+  transports: ['websocket', 'polling'],
   autoConnect: true,
->>>>>>> e061760dd0f91ca803211f208ad179a63bac598b
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionAttempts: 10
