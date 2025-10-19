@@ -60,7 +60,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Socket.IOをASGIミドルウェアとして統合
 from socketio import ASGIApp
 socket_app = ASGIApp(sio, other_asgi_app=app)
-app = socket_app
 
 # WebSocket イベントハンドラ
 @sio.event
@@ -613,6 +612,11 @@ def update_profile(
     db.commit()
     db.refresh(user)
     return user
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for keeping the service alive"""
+    return {"status": "ok", "time": datetime.now().isoformat()}
 
 @app.post("/api/profile/avatar")
 def upload_avatar(
