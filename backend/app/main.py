@@ -688,6 +688,19 @@ def delete_avatar(
     
     return {"message": "プロフィール画像を削除しました"}
 
+@app.get("/reset-users")
+def reset_users_endpoint():
+    """緊急用: ユーザーテーブルをリセットする"""
+    db = SessionLocal()
+    try:
+        db.query(models.User).delete()
+        db.commit()
+        return {"message": "ユーザーテーブルをリセットしました"}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
 @app.get("/health")
 def health_check():
     """Health check endpoint for keeping the service alive"""
